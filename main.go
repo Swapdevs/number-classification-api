@@ -1,33 +1,20 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 )
 
-type NumberResponse struct {
-	Number    int      `json:"number"`
-	IsPrime   bool     `json:"is_prime"`
-	IsPerfect bool     `json:"is_perfect"`
-	Properties []string `json:"properties"`
-	DigitSum  int      `json:"digit_sum"`
-	FunFact   string   `json:"fun_fact"`
-}
-
-type ErrorResponse struct {
-	Number string `json:"number"`
-	Error  bool   `json:"error"`
-}
-
+// Function to check if a number is prime
 func isPrime(n int) bool {
 	if n < 2 {
 		return false
 	}
-	for i := 2; i <= int(math.Sqrt(float64(n))); i++ {
+	for i := 2; i*i <= n; i++ {
 		if n%i == 0 {
 			return false
 		}
@@ -35,33 +22,32 @@ func isPrime(n int) bool {
 	return true
 }
 
+// Function to check if a number is perfect
 func isPerfect(n int) bool {
-	if n < 2 {
-		return false
-	}
-	sum := 1
-	for i := 2; i*i <= n; i++ {
+	sum := 0
+	for i := 1; i < n; i++ {
 		if n%i == 0 {
 			sum += i
-			if i != n/i {
-				sum += n / i
-			}
 		}
 	}
 	return sum == n
 }
 
+// Function to check if a number is an Armstrong number
 func isArmstrong(n int) bool {
-	digits := strconv.Itoa(n)
-	length := len(digits)
 	sum := 0
-	for _, digit := range digits {
-		d, _ := strconv.Atoi(string(digit))
-		sum += int(math.Pow(float64(d), float64(length)))
+	temp := n
+	digits := len(strconv.Itoa(n))
+
+	for temp > 0 {
+		digit := temp % 10
+		sum += int(math.Pow(float64(digit), float64(digits)))
+		temp /= 10
 	}
 	return sum == n
 }
 
+// Function to get the sum of digits of a number
 func digitSum(n int) int {
 	sum := 0
 	for n > 0 {
@@ -71,56 +57,70 @@ func digitSum(n int) int {
 	return sum
 }
 
-func classifyNumber(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+// Function to classify the number
+func classifyNumber(c *gin.Context) {
+	numStr := c.Query("number")
 
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+	// Set JSON Content-Type explicitly for all responses
+	c.Writer.Header().Set("Content-Type", "application/json")
 
-	numberStr := r.URL.Query().Get("number")
-	number, err := strconv.Atoi(numberStr)
+	num, err := strconv.Atoi(numStr)
 	if err != nil {
-		errorResponse := ErrorResponse{Number: numberStr, Error: true}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"number": numStr,
+			"error":  true,
+		})
 		return
 	}
 
+	// Determine properties
 	properties := []string{}
-	if isArmstrong(number) {
-		properties = append(properties, "armstrong")
-	}
-	if number%2 == 0 {
+	if num%2 == 0 {
 		properties = append(properties, "even")
 	} else {
 		properties = append(properties, "odd")
 	}
-
-	funFact := fmt.Sprintf("%d is an interesting number.", number)
-	if isArmstrong(number) {
-		funFact = fmt.Sprintf("%d is an Armstrong number because the sum of its own digits each raised to the power of the number of digits equals itself.", number)
+	if isArmstrong(num) {
+		properties = append(properties, "armstrong")
 	}
 
-	response := NumberResponse{
-		Number:    number,
-		IsPrime:   isPrime(number),
-		IsPerfect: isPerfect(number),
-		Properties: properties,
-		DigitSum:  digitSum(number),
-		FunFact:   funFact,
-	}
+	// Fun fact (Replace with real API later)
+	funFact := fmt.Sprintf("%d is an interesting number!", num)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Send JSON response
+	c.JSON(http.StatusOK, gin.H{
+		"number":     num,
+		"is_prime":   isPrime(num),
+		"is_perfect": isPerfect(num),
+		"properties": properties,
+		"digit_sum":  digitSum(num),
+		"fun_fact":   funFact,
+	})
 }
 
 func main() {
-	http.HandleFunc("/api/classify-number", classifyNumber)
+	r := gin.Default()
 
-	fmt.Println("Server is running on port 8080...")
-	http.ListenAndServe(":8080", nil)
+	// CORS Middleware
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// Ensure all responses include "Content-Type: application/json"
+		c.Writer.Header().Set("Content-Type", "application/json")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
+
+	// API Route
+	r.GET("/api/classify-number", classifyNumber)
+
+	// Start server on port 8080
+	r.Run(":8080")
 }
+
