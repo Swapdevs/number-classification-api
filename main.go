@@ -24,6 +24,9 @@ func isPrime(n int) bool {
 
 // Function to check if a number is perfect
 func isPerfect(n int) bool {
+	if n <= 0 { // Ensure only positive numbers are checked
+		return false
+	}
 	sum := 0
 	for i := 1; i < n; i++ {
 		if n%i == 0 {
@@ -65,6 +68,7 @@ func classifyNumber(c *gin.Context) {
 	// Set JSON Content-Type explicitly for all responses
 	c.Writer.Header().Set("Content-Type", "application/json")
 
+	// Convert input to float (to handle both integers and floats)
 	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
 		// If input is not a number, return 400
@@ -77,7 +81,7 @@ func classifyNumber(c *gin.Context) {
 
 	// Determine properties
 	properties := []string{}
-	if int(num)%2 == 0 {
+	if int(math.Abs(num))%2 == 0 {
 		properties = append(properties, "even")
 	} else {
 		properties = append(properties, "odd")
@@ -93,7 +97,7 @@ func classifyNumber(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"number":     num,
 		"is_prime":   isPrime(int(num)),
-		"is_perfect": isPerfect(int(num)),
+		"is_perfect": isPerfect(int(num)), // Now correctly handles 0
 		"properties": properties,
 		"digit_sum":  digitSum(num),
 		"fun_fact":   funFact,
