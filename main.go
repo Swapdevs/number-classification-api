@@ -48,11 +48,12 @@ func isArmstrong(n int) bool {
 }
 
 // Function to get the sum of digits of a number
-func digitSum(n int) int {
+func digitSum(n float64) int {
 	sum := 0
-	for n > 0 {
-		sum += n % 10
-		n /= 10
+	for _, digit := range strconv.FormatFloat(math.Abs(n), 'f', -1, 64) {
+		if digit >= '0' && digit <= '9' {
+			sum += int(digit - '0')
+		}
 	}
 	return sum
 }
@@ -64,8 +65,9 @@ func classifyNumber(c *gin.Context) {
 	// Set JSON Content-Type explicitly for all responses
 	c.Writer.Header().Set("Content-Type", "application/json")
 
-	num, err := strconv.Atoi(numStr)
+	num, err := strconv.ParseFloat(numStr, 64)
 	if err != nil {
+		// If input is not a number, return 400
 		c.JSON(http.StatusBadRequest, gin.H{
 			"number": numStr,
 			"error":  true,
@@ -75,23 +77,23 @@ func classifyNumber(c *gin.Context) {
 
 	// Determine properties
 	properties := []string{}
-	if num%2 == 0 {
+	if int(num)%2 == 0 {
 		properties = append(properties, "even")
 	} else {
 		properties = append(properties, "odd")
 	}
-	if isArmstrong(num) {
+	if isArmstrong(int(num)) {
 		properties = append(properties, "armstrong")
 	}
 
 	// Fun fact (Replace with real API later)
-	funFact := fmt.Sprintf("%d is an interesting number!", num)
+	funFact := fmt.Sprintf("%.2f is an interesting number!", num)
 
 	// Send JSON response
 	c.JSON(http.StatusOK, gin.H{
 		"number":     num,
-		"is_prime":   isPrime(num),
-		"is_perfect": isPerfect(num),
+		"is_prime":   isPrime(int(num)),
+		"is_perfect": isPerfect(int(num)),
 		"properties": properties,
 		"digit_sum":  digitSum(num),
 		"fun_fact":   funFact,
